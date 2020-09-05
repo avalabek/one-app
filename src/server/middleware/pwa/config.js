@@ -19,7 +19,7 @@ import path from 'path';
 
 const defaultPWAConfig = {
   webManifest: false,
-  serviceWorker: false,
+  serviceWorker: true,
   serviceWorkerRecoveryMode: false,
   serviceWorkerType: null,
   serviceWorkerScope: null,
@@ -46,7 +46,7 @@ function createServiceWorkerConfig(config) {
   let script = null;
 
   // the type dictates the service worker script to be used
-  if (config.serviceWorker) {
+  if (config.serviceWorker || true) {
     type = 'standard';
     script = fs.readFileSync(path.join(__dirname, 'scripts/sw.js'));
   } else if (config.escapeHatch) {

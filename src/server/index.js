@@ -23,10 +23,13 @@ import './init';
 // Allow env config to run before importing holocron. (x2)
 import ssrServer from './ssrServer';
 import metricsServer from './metricsServer';
+import createGrpcServer from './grpcServer';
 import listen from './listen';
 import { addServer, shutdown } from './shutdown';
 import pollModuleMap from './utils/pollModuleMap';
 import loadModules from './utils/loadModules';
+
+require('dotenv').config();
 
 function ssrServerStart() {
   // need to load _some_ locale so that react-intl does not prevent modules from loading
@@ -60,10 +63,25 @@ function metricsServerStart() {
     );
 }
 
+function websocketServerStart() {
+  return new Promise((res, rej) => {
+    const port = process.env.HTTP_WS_PORT || 8880;
+    addServer(createGrpcServer().listen(port, (err) => (err ? rej(err) : res(port))));
+  })
+    .then(
+      (port) => console.log(`📊 Metrics server listening on port ${port}`),
+      (err) => {
+        console.error('error encountered starting the metrics server', err);
+        throw err;
+      }
+    );
+}
+
 function appServersStart() {
   return Promise.all([
     ssrServerStart(),
     metricsServerStart(),
+    websocketServerStart(),
   ]);
 }
 

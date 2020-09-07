@@ -64,9 +64,7 @@ export default function createGrpcServer() {
     server.on('end', console.log);
     server.on('error', console.log);
     server.on('status', console.log);
-    const imessage = serviceDescriptor.lookup('IMessage');
-    const decoded = imessage.decode(message);
-    server.write(decoded);
+    server.write(message);
     server.end();
   }
 
@@ -89,9 +87,14 @@ export default function createGrpcServer() {
     orchestratorClient = new protoDefs.ChaosOrchestrator('localhost:62223', creds);
   }
 
-
   loadGrpcClient();
 
+  function mapToArray(data) {
+    // this is dumb. but the library is doing something strange
+    // this works because data comes across the (socket) wire as an object like
+    // { "1":10, "2":77 "3":65 ... "n":<?> } when 'n' is the number of bytes in the array
+    return [...Object.keys(data).map((key) => data[key]).reduce((accum, next) => [...accum, next], [])];
+  }
   console.log('Starting GRPC Proxy Server...');
 
   socket.on('connection', (io) => {
@@ -102,22 +105,18 @@ export default function createGrpcServer() {
     const service = 'ChaosOrchestrator';
 
     io.on(`${service}.intertangle`, (data) => {
+      console.log('intertangle recieved', Array.isArray(data), data);
       const message = serviceDescriptor
         .lookup('IMessage')
-        .decodeDelimited(data);
+        .decode(mapToArray(data));
       intertangle(message, console.log);
     });
 
     io.on(`${service}.addClient`, (data) => {
-      console.log('recieved', Array.isArray(data), data);
+      console.log('addClient recieved', Array.isArray(data), data);
       const newClient = serviceDescriptor
         .lookup('OrchestratorNodeConfig')
-        .decode(
-          // this is dumb. but the library is doing something strange
-          // this works because data comes across the (socket) wire as an object like
-          // { "1":10, "2":77 "3":65 ... "n":<?> } when 'n' is the number of bytes in the array
-          Object.keys(data).map((key) => data[key]).reduce((accum, next) => [...accum, next], [])
-        );
+        .decode(mapToArray(data));
       addClient(newClient);
     });
   });
@@ -127,3 +126,5 @@ export default function createGrpcServer() {
   });
   return httpServer;
 }
+
+
